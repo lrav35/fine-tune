@@ -1,0 +1,2 @@
+torch==2.1.2
+ipykernel==6.27.1
