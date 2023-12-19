@@ -1,2 +1,6 @@
 torch==2.1.2
 ipykernel==6.27.1
+pandas==2.1.4
+pyarrow==14.0.2
+transformers==4.36.2
+datasets==2.15.0
