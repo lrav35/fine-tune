@@ -8,7 +8,7 @@ model = "mistral-tiny"
 client = MistralClient(api_key=api_key)
 
 messages = [
-	ChatMessage(role="user", content="can you translate this sentence to french for me? sentence: I would like a coffee with milk, but go light on the sugar.")
+	ChatMessage(role="user", content="translate this sentence to french: I would like a coffee, but please go light on the milk.")
     ]
 
 chat_response = client.chat(
