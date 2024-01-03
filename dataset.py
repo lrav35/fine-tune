@@ -1,10 +1,22 @@
-from typing import Dict
+from typing import Dict, Sequence
 import torch
 import math
 import os
 import transformers
 import datasets
 from torch.utils.data import DataSet
+
+def fmt_prompt(prompt):
+    return f"### Instructions:\n{prompt}\n\n### Response:"
+
+def preprocess(
+        samples: Sequence[str],
+        tokenizer: transformers.PreTrainedTokenizer
+    ) -> Dict:
+    """Preprocess data for training by tokenizing"""
+    sources = [f"{fmt_prompt(sources)}" for sources in samples["input"]]
+    targets = [f"{translation}{tokenizer.eos_token}" for translation in samples["output"]]
+    return None
 
 
 class MyDataSet(DataSet):
