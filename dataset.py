@@ -4,10 +4,10 @@ import math
 import os
 import transformers
 import datasets
-from torch.utils.data import DataSet
+from torch.utils.data import Dataset
 
 def fmt_prompt(prompt):
-    return f"### Instructions:\n{prompt}\n\n### Response:"
+    return f"### Instructions:\n Can you please translate this phrase or word to french? \n {prompt}\n\n### Response:\n Yes of course! Here is a french translation of that phrase: \n"
 
 def preprocess(
         samples: Sequence[str],
@@ -16,10 +16,22 @@ def preprocess(
     """Preprocess data for training by tokenizing"""
     sources = [f"{fmt_prompt(sources)}" for sources in samples["input"]]
     targets = [f"{translation}{tokenizer.eos_token}" for translation in samples["output"]]
+    complete_examples = [s + t for s,t in zip(sources, targets)]
+    """tokenize examples"""
+    tokenized_strings = [
+        tokenizer(
+            example,
+            return_tensors='pt',
+            padding=False,
+            max_length=tokenizer.model_max_length,
+            truncation=True,
+        ) 
+        for example in complete_examples
+    ]
     return None
 
 
-class MyDataSet(DataSet):
+class MyDataSet(Dataset):
     """Dataset for fine-tuning model"""
 
     def __init__(self, tokenizer: transformers.PreTrainedTokenizer, paths: str, limit=None):
@@ -28,7 +40,7 @@ class MyDataSet(DataSet):
             datasets.load_dataset(
             "json",
             data_files=paths,
-            split=split=f"train[0:{limit}]" if limit else "train",
+            split=f"train[0:{limit}]" if limit else "train",
             )
             .filter(
                 # filter data entries
