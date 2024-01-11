@@ -1,12 +1,14 @@
 import tqdm
 import uuid
-import matplotlib as plt
+import torch
+import numpy as np
 
 def should_run_eval(total_steps, freq, current_step):
     return current_step % (total_steps // freq) == 0
 
 def eval(model, val_data):
     print("evaluating model...\n")
+    # TODO: change eval method
     metric = evaluate.load("accuracy")
     preds_and_true = {'preds': [], 'labels': []}
     model.eval()
@@ -34,12 +36,12 @@ def eval(model, val_data):
     print(f"Accuracy: {acc_result['accuracy']}")
     return acc_result['accuracy'], preds_and_true, val_loss
 
-def generate_loss_image(train_loss: list, val_loss: list, output_dir: str):
-    iter_x_ind = np.linspace(0, len(val_loss)-1, num=len(train_loss))
-    interp_val_loss = np.interp(iter_x_ind, np.arange(len(val_loss)), val_loss)
-    plt.plot(np.array(train_loss), color='b', label='training loss')
-    plt.plot(interp_val_loss, color='r', label='validation loss')
-    plt.savefig(output_dir + '/loss_plot.jpeg')
+# def generate_loss_image(train_loss: list, val_loss: list, output_dir: str):
+#     iter_x_ind = np.linspace(0, len(val_loss)-1, num=len(train_loss))
+#     interp_val_loss = np.interp(iter_x_ind, np.arange(len(val_loss)), val_loss)
+#     plt.plot(np.array(train_loss), color='b', label='training loss')
+#     plt.plot(interp_val_loss, color='r', label='validation loss')
+#     plt.savefig(output_dir + '/loss_plot.jpeg')
 
 def save_model(model, outpath: str, current_epoch: int, current_step: int, results: dict):
     print(f"saving model at epoch: {current_epoch}, step: {current_step}")
@@ -96,4 +98,4 @@ def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, op
                 model.train()
             pbar.update(1)
         train_epoch_loss.extend(train_batch_loss)
-    generate_loss_image(train_epoch_loss, val_epoch_loss, output_dir)
+    # generate_loss_image(train_epoch_loss, val_epoch_loss, output_dir)
