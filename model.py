@@ -2,17 +2,16 @@ import tqdm
 import uuid
 import torch
 import numpy as np
+import wandb
 
 def should_run_eval(total_steps, freq, current_step):
     return current_step % (total_steps // freq) == 0
 
-def eval(model, val_data):
+def eval(model, val_data, wandb):
     print("evaluating model...\n")
-    # TODO: change eval method
-    metric = evaluate.load("accuracy")
-    preds_and_true = {'preds': [], 'labels': []}
     model.eval()
-    for batch in val_data:
+    losses = 0.0
+    for step, batch in enumerate(val_data):
         batch = {
             "input_ids": batch["input_ids"].to(model.device),
             "labels": batch["labels"].to(model.device),
@@ -22,42 +21,29 @@ def eval(model, val_data):
             outputs = model(**batch)
         
         # record loss
-        val_loss = outputs.loss.item()
+        loss = outputs.loss
+        losses += loss.float()
+    val_loss = losses / (step + 1)
+    wandb.log(
+        {
+            "val_loss": val_loss
+        }
+    )
 
-        # compute accuracy
-        logits = outputs.logits
-        preds = torch.argmax(logits, dim=1)
-        metric.add_batch(predictions=preds, references=batch["labels"])
-        preds_and_true['preds'].extend([p.item() for p in preds+1])
-        preds_and_true['labels'].extend([l.item() for l in batch["labels"]+1])
+    return val_loss
 
-        # pbar.update(1)
-    acc_result = metric.compute()
-    print(f"Accuracy: {acc_result['accuracy']}")
-    return acc_result['accuracy'], preds_and_true, val_loss
-
-# def generate_loss_image(train_loss: list, val_loss: list, output_dir: str):
-#     iter_x_ind = np.linspace(0, len(val_loss)-1, num=len(train_loss))
-#     interp_val_loss = np.interp(iter_x_ind, np.arange(len(val_loss)), val_loss)
-#     plt.plot(np.array(train_loss), color='b', label='training loss')
-#     plt.plot(interp_val_loss, color='r', label='validation loss')
-#     plt.savefig(output_dir + '/loss_plot.jpeg')
-
-def save_model(model, outpath: str, current_epoch: int, current_step: int, results: dict):
+def save_model(model, outpath: str, current_epoch: int, current_step: int):
     print(f"saving model at epoch: {current_epoch}, step: {current_step}")
     outpath += f"/model"
     model.save_pretrained(outpath)    
 
-def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, optimizer, lr_scheduler, save_path: str):
+def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, optimizer, lr_scheduler, save_path: str, wandb):
     pbar = tqdm(range(train_steps))
 
     run_id = str(uuid.uuid4())
     print(f"model id :: {run_id}")
     output_dir = f"{save_path}/outputs/bert/{run_id}"
     model.train()
-    best_accuracy = 0.0
-    train_epoch_loss = []
-    val_epoch_loss = []
     for epoch in range(epochs):
         current_epoch = epoch + 1
         train_batch_loss = []
@@ -75,7 +61,7 @@ def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, op
             outputs = model(**batch)
             loss = outputs.loss
 
-            train_batch_loss.append(loss.item())
+            # write some kind of results logger / recording loss w wandb
 
             # backward
             loss.backward()
@@ -87,15 +73,9 @@ def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, op
 
             # evaluate and save model
             if should_run_eval(len(train_dataloader), 5, current_step):
-                accuracy, results, val_loss = eval(model, val_dataloader)
-                val_epoch_loss.append(val_loss)
-                if accuracy > best_accuracy:
-                    best_accuracy = accuracy
-                    save_model(model, output_dir, current_epoch, current_step, results)
-                else:
-                    print('skipping model save...')
-                print(f"current best accuracy: {best_accuracy}\n")
+                val_loss = eval(model, val_dataloader, wandb)
+                
+                save_model(model, output_dir, current_epoch, current_step)
                 model.train()
             pbar.update(1)
-        train_epoch_loss.extend(train_batch_loss)
     # generate_loss_image(train_epoch_loss, val_epoch_loss, output_dir)
