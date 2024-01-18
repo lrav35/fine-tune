@@ -35,7 +35,20 @@ def eval(model, val_data, wandb):
 def save_model(model, outpath: str, current_epoch: int, current_step: int):
     print(f"saving model at epoch: {current_epoch}, step: {current_step}")
     outpath += f"/model"
-    model.save_pretrained(outpath)    
+    model.save_pretrained(outpath)
+
+def run_stats(pbar, wandb, epoch, step, loss):
+
+    wandb.log({
+        "current_loss": loss,
+        "current_epoch": epoch
+    })
+
+    current_loss = f"{loss:.4f}"
+
+    pbar.set_description(f"Epoch {epoch} :: Step {step} :: Loss {current_loss}")
+
+    
 
 def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, optimizer, lr_scheduler, save_path: str, wandb):
     pbar = tqdm(range(train_steps))
@@ -46,7 +59,6 @@ def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, op
     model.train()
     for epoch in range(epochs):
         current_epoch = epoch + 1
-        train_batch_loss = []
         for step, batch in enumerate(train_dataloader):
             current_step = step + 1
             pbar.set_description(f"Epoch {current_epoch} :: Step {current_step}")
@@ -61,10 +73,12 @@ def train_model(model, epochs, train_dataloader, val_dataloader, train_steps, op
             outputs = model(**batch)
             loss = outputs.loss
 
-            # write some kind of results logger / recording loss w wandb
-
             # backward
             loss.backward()
+
+            # log results
+            loss = loss.detach()
+            run_stats(pbar, wandb, epoch, step, loss.item())
 
             # update weights
             optimizer.step()
